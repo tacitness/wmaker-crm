@@ -29,6 +29,30 @@ follows from it.
   indentation (tabs), brace style, naming, and comment conventions as the
   surrounding file. Run `./checkpatch.pl` on your diff.
 
+## Branching model (Model A: single trunk)
+
+- **One trunk, `master`** — and it stays `master` because that is *upstream's*
+  branch name. The rebase ritual rebases onto `upstream/master`, so matching it
+  keeps the tooling and the mental model trivial. **Do not rename to `main`.**
+- **No long-lived integration branch.** The layers are decoupled at runtime
+  (D-Bus / EWMH / MCP), so wmaker-ng/-ai drive a *running* Window Maker via the
+  container image / packages — never a git ref. There is nothing to "build the
+  AI plane against," so there is no downstream branch to maintain.
+- **Every change is a short-lived branch → PR → rebase-merge** — linear, one
+  clean commit on `master`. "What's ours" is always
+  `git diff upstream/master..master`; the patch series is meant to *shrink* as
+  upstream accepts commits, not to diverge.
+- **Sending core patches upstream:** path-scope to the C tree, e.g.
+  `git format-patch upstream/master..master -- src WINGs wrlib wmlib WPrefs.app`.
+  Infra (`.github/`, `infra.mk`, `docker/`, `*.md`) excludes itself because it
+  is all *new top-level paths* — it never leaks into the series.
+
+> Sibling repos `tacitness/wmaker-ng` (and its `-ai` facet) are greenfield, not
+> forks, so they use the house default branch `main` (PLAN §7). It is fine that
+> this fork uses `master` and they use `main`: a fork matches its upstream's
+> trunk name, a greenfield repo matches house style. The repos are separate and
+> runtime-decoupled — no tooling depends on the names matching.
+
 ## The patch series (actual code)
 
 Real behavior changes are a **small series of focused commits** meant for
