@@ -1,0 +1,58 @@
+name: Validate
+
+# Proves the Window Maker C core still compiles from a clean checkout, and scans
+# for secrets. The core itself is pristine upstream; this guards our thin infra
+# layer (and any future patch-series commit) against breaking the sacred build.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+# House style (wmaker-ng PLAN §7): ALL third-party Actions are pinned by commit
+# SHA with a version comment. Bump the SHA and the comment together.
+
+jobs:
+  build:
+    name: Core build (autotools, Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool libtool-bin \
+            pkg-config gettext \
+            libx11-dev libxext-dev libxt-dev libxmu-dev \
+            libxft-dev libfontconfig1-dev libxpm-dev \
+            libxinerama-dev libxrandr-dev libxfixes-dev \
+            libpng-dev libjpeg-dev libtiff-dev libgif-dev libwebp-dev \
+            libexif-dev libarchive-dev
+
+      - name: autogen
+        run: ./autogen.sh
+
+      - name: configure
+        run: ./configure
+
+      - name: make
+        run: make -j"$(nproc)"
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0  # scan full history, not just the tip
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          # Public repo → no license needed. Config: ./.gitleaks.toml
+          GITLEAKS_CONFIG: .gitleaks.toml
