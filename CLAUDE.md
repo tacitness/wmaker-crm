@@ -21,6 +21,10 @@ rebasable fork of GNU Window Maker tracked against `repo.or.cz/wmaker-crm`. Read
   Run `./checkpatch.pl` on the diff.
 - **Stay current by rebasing, not merging.** `make -f infra.mk rebase` (the
   rebase ritual; monthly in `upstream-sync.yml`). Never force-push master.
+- **One trunk, `master`** (it matches *upstream's* branch name — keep it; don't
+  rename to `main`). Every change is a short-lived branch → PR → rebase-merge; no
+  long-lived integration branch (ng/-ai consume the container image, not a git
+  ref). Sibling repos are greenfield and use `main` — that mismatch is fine.
 
 ## Build
 
