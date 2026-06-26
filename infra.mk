@@ -31,3 +31,16 @@ help: ## Show this help
 .PHONY: rebase
 rebase: ## Rebase our layer onto upstream Window Maker (scripts/rebase-upstream.sh)
 	@scripts/rebase-upstream.sh
+
+# ── Headless container image (Xvfb + wmaker) ──────────────────────────────────
+# Builds Window Maker from this source and runs it under Xvfb — the base layer
+# the ai-mcp sandbox builds on (downstream: wmaker-ng#16, #18). See docker/.
+IMAGE ?= wmaker-crm:headless
+
+.PHONY: image
+image: ## Build the headless Xvfb + wmaker container image (IMAGE=wmaker-crm:headless)
+	docker build -t $(IMAGE) $(ROOT_DIR)
+
+.PHONY: run
+run: ## Run the headless image (a live Xvfb + wmaker desktop; Ctrl-C to stop)
+	docker run --rm --name wmaker-headless $(IMAGE)
