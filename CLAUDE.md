@@ -28,8 +28,10 @@ rebasable fork of GNU Window Maker tracked against `repo.or.cz/wmaker-crm`. Read
 
 ## Build
 
-Autotools. Top-level `Makefile` is `./configure`-generated and gitignored, so
-infra targets live in `infra.mk`:
+Autotools, so bare `make` builds Window Maker. The top-level `Makefile` is
+`./configure`-generated and gitignored — **never commit a `Makefile` (or a
+`GNUmakefile`, which GNU make reads first and would hijack the build)**. Infra
+targets live in the separately-named `infra.mk`:
 
 ```bash
 ./autogen.sh && ./configure && make   # build Window Maker (the sacred build)
