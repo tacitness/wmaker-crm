@@ -97,6 +97,15 @@ separately-named `infra.mk`, always invoked explicitly:
 make -f infra.mk help                  # infra targets: rebase, image, run
 ```
 
+`make -f infra.mk <target>` is the canonical invocation — there is deliberately
+**no top-level wrapper** (it would either clobber the build, as above, or add a
+second, drift-prone way to do one thing). If the typing grates, alias it
+per-developer; nothing committed:
+
+```sh
+alias wm='make -f infra.mk'           # then: wm rebase | wm image | wm run
+```
+
 `.github/workflows/validate.yml` proves the core still compiles on a clean
 Ubuntu runner and runs a gitleaks secret scan. All third-party Actions are
 pinned by commit SHA with a version comment — bump the SHA and the comment
