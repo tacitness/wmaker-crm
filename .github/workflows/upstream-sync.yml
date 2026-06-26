@@ -1,0 +1,105 @@
+name: Upstream sync
+
+# The rebase ritual, automated. Monthly (and on demand) it fetches GNU Window
+# Maker upstream (repo.or.cz/wmaker-crm) and rebases our thin infra/patch layer
+# onto it on a dated branch, then opens a PR against master. It NEVER pushes to
+# master and NEVER force-pushes master. On a rebase conflict it stops and opens
+# an issue listing the conflicting files for a human to resolve.
+#
+# While the fork is pristine this is a clean fast-forward (just pulls upstream's
+# new commits into a PR). The actual rebase logic is shared with local devs via
+# scripts/rebase-upstream.sh — this workflow only adds the PR/issue plumbing.
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'   # 06:00 UTC on the 1st of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+# House style (wmaker-ng PLAN §7): third-party Actions pinned by commit SHA with
+# a version comment. Bump the SHA and the comment together.
+
+jobs:
+  sync:
+    name: Fetch + rebase onto upstream
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0   # full history so the rebase has every commit
+
+      - name: Configure identity + branch name
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "SYNC_BRANCH=upstream-sync/$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+
+      - name: Rebase our layer onto upstream
+        id: rebase
+        env:
+          CI_MODE: '1'
+          CONFLICTS_FILE: ${{ github.workspace }}/.rebase-conflicts.txt
+        run: |
+          set +e
+          scripts/rebase-upstream.sh
+          rc=$?
+          set -e
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          case "$rc" in
+            0) echo "Rebased OK -> will open a PR for $SYNC_BRANCH" ;;
+            2) echo "Already up to date with upstream — nothing to do" ;;
+            3) echo "Rebase conflict -> will open an issue" ;;
+            *) echo "rebase-upstream.sh failed with code $rc"; exit "$rc" ;;
+          esac
+
+      - name: Push branch + open PR
+        if: steps.rebase.outputs.rc == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git push --force-with-lease origin "HEAD:$SYNC_BRANCH"
+          if gh pr view "$SYNC_BRANCH" --json number >/dev/null 2>&1; then
+            echo "PR for $SYNC_BRANCH already exists — branch updated"
+            exit 0
+          fi
+          body=$(printf '%s\n' \
+            "Automated monthly rebase ritual. Replays our infra/patch layer onto the latest upstream Window Maker (\`upstream/master\`)." \
+            "" \
+            "- Do **not** squash — merge with **rebase** to keep \`master = upstream + our commits\` linear." \
+            "- Review the upstream commits this pulls in before merging." \
+            "" \
+            "_Opened by \`.github/workflows/upstream-sync.yml\`._")
+          gh pr create \
+            --base master \
+            --head "$SYNC_BRANCH" \
+            --title "Upstream sync $(date -u +%Y-%m-%d): rebase onto repo.or.cz/wmaker-crm" \
+            --body "$body"
+
+      - name: Open conflict issue
+        if: steps.rebase.outputs.rc == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files="$(cat .rebase-conflicts.txt 2>/dev/null || echo '(file list unavailable)')"
+          body=$(printf '%s\n' \
+            "The monthly rebase ritual hit a conflict rebasing our layer onto \`upstream/master\`. Human resolution needed." \
+            "" \
+            "**Conflicting files:**" \
+            '```' \
+            "$files" \
+            '```' \
+            "" \
+            "Resolve locally:" \
+            '```bash' \
+            "make -f infra.mk rebase   # re-run; resolve, then: git rebase --continue" \
+            '```' \
+            "Then push the \`upstream-sync/<date>\` branch and open a PR against \`master\`." \
+            "" \
+            "_Opened by \`.github/workflows/upstream-sync.yml\`._")
+          gh issue create \
+            --title "Upstream rebase conflict $(date -u +%Y-%m-%d)" \
+            --body "$body"
