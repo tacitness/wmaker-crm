@@ -1,0 +1,17 @@
+# Keep the build context small and the build hermetic — the image builds Window
+# Maker from the tracked source, not from local build artifacts.
+.git
+.github
+*.o
+*.lo
+*.la
+.deps
+.libs
+autom4te.cache
+config.log
+config.status
+/Makefile
+**/Makefile.in
+INSTALL-WMAKER
+README.i18n
+.rebase-conflicts.txt
