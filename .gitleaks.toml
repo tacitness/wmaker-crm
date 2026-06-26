@@ -1,0 +1,14 @@
+# gitleaks config — extends the maintained default ruleset (wmaker-ng PLAN §7).
+# Used by CI (.github/workflows/validate.yml). The C tree is pristine upstream
+# Window Maker; this layer only adds infra files.
+title = "wmaker-crm"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Workflow secret references and upstream test/example fixtures."
+# `${{ secrets.X }}` / `${{ vars.X }}` are references, never values.
+regexes = [
+  '''\$\{\{\s*(secrets|vars)\.[A-Za-z0-9_]+''',
+]
