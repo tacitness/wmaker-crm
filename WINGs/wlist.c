@@ -1184,7 +1184,7 @@ static void handleActionEvents(XEvent * event, void *data)
 		}
 		break;
 
-	case KeyPress:
+	case KeyPress: {
 		char buffer[16];
 		KeySym ksym;
 		Status status;
@@ -1557,6 +1557,7 @@ static void handleActionEvents(XEvent * event, void *data)
 		if (lPtr->typeaheadLen > 0)
 			lPtr->typeaheadID = WMAddTimerHandler(TYPEAHEAD_CLEAR_DELAY, typeaheadTimeout, lPtr);
 		break;
+	}
 
 	}
 	if (lPtr->topItem != topItem)
