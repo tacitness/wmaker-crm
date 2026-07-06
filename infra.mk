@@ -20,9 +20,54 @@ ROOT_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || pwd)
 # ── Help ──────────────────────────────────────────────────────────────────────
 .PHONY: help
 help: ## Show this help
-	@echo "wmaker-crm infra targets (build the WM itself with: ./autogen.sh && ./configure && make)"
+	@echo "wmaker-crm infra targets (RandR-enabled build+install: make -f infra.mk install)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+
+# ── Host build / install (RandR-enabled) ──────────────────────────────────────
+# The stock distro `wmaker` package is built WITHOUT libXrandr, so the WM never
+# sees RRScreenChangeNotify and cannot adapt to a live monitor-topology change
+# (dock/undock strands the session). The RandR code is already in the pristine
+# tree (src/randr.c, guarded by USE_RANDR); it is only a build-time gap.
+#
+# These targets build from this source with --enable-randr made EXPLICIT (a
+# missing libxrandr-dev fails the build instead of silently dropping RandR) and
+# install under /usr/local, which is ahead of /usr/bin on PATH — so our build
+# wins without overwriting the dpkg-owned binary. Revert: `sudo make uninstall`
+# from the built tree, or remove /usr/local/bin/wmaker + /usr/local/share/WindowMaker.
+#
+# This is infra only: it never touches the C tree or autotools; the capability
+# is enabled purely through the configure invocation.
+PREFIX          ?= /usr/local
+SYSCONFDIR      ?= /etc
+CONFIGURE_FLAGS ?= --enable-randr
+JOBS            ?= $(shell nproc 2>/dev/null || echo 2)
+SUDO            ?= sudo
+
+.PHONY: build
+build: ## Build the WM from source with RandR enabled (PREFIX=/usr/local)
+	@./autogen.sh
+	@./configure --prefix=$(PREFIX) --sysconfdir=$(SYSCONFDIR) $(CONFIGURE_FLAGS)
+	@$(MAKE) -j$(JOBS)
+	@$(MAKE) -f infra.mk verify-randr
+
+.PHONY: install
+install: build ## Build then install the RandR WM (uses $(SUDO) for PREFIX)
+	@$(SUDO) $(MAKE) install
+	@$(MAKE) -f infra.mk verify-randr-installed
+	@echo "==> installed; 'wmaker' now resolves to: $$(command -v wmaker)"
+
+.PHONY: verify-randr
+verify-randr: ## Assert the freshly built src/wmaker links libXrandr
+	@ldd src/wmaker 2>/dev/null | grep -q libXrandr \
+		&& echo "OK: src/wmaker links libXrandr (RandR live-reconfig enabled)" \
+		|| { echo "FAIL: src/wmaker is missing libXrandr — is libxrandr-dev installed?"; exit 1; }
+
+.PHONY: verify-randr-installed
+verify-randr-installed: ## Assert the installed $(PREFIX)/bin/wmaker links libXrandr
+	@ldd $(PREFIX)/bin/wmaker 2>/dev/null | grep -q libXrandr \
+		&& echo "OK: $(PREFIX)/bin/wmaker links libXrandr" \
+		|| { echo "FAIL: $(PREFIX)/bin/wmaker missing libXrandr"; exit 1; }
 
 # ── Rebase ritual ─────────────────────────────────────────────────────────────
 # Fetch upstream (repo.or.cz/wmaker-crm) and rebase our infra/patch layer onto
