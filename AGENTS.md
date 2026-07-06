@@ -94,8 +94,26 @@ separately-named `infra.mk`, always invoked explicitly:
 
 ```bash
 ./autogen.sh && ./configure && make   # build Window Maker (the sacred build)
-make -f infra.mk help                  # infra targets: rebase, image, run
+make -f infra.mk help                  # infra targets: build, install, rebase, image, run
 ```
+
+### RandR-enabled build/install (multi-monitor live reconfig)
+
+The stock distro `wmaker` package ships **without libXrandr**, so the WM never
+sees `RRScreenChangeNotify` and can't adapt to a live monitor change — undocking
+strands the session. The RandR code is already in the pristine tree
+(`src/randr.c`, guarded by `USE_RANDR`); it's only a build-time gap. To build our
+own with it on and shadow the distro binary on PATH:
+
+```bash
+make -f infra.mk install   # ./configure --enable-randr, install to /usr/local, verify libXrandr
+```
+
+`--enable-randr` is explicit so a missing `libxrandr-dev` fails the build rather
+than silently dropping RandR; `verify-randr` asserts the binary links libXrandr.
+This is **infra only** — it enables the capability through the configure
+invocation and never touches the C tree. Revert by removing the `/usr/local`
+wmaker files (PATH falls back to the distro `/usr/bin/wmaker`).
 
 `make -f infra.mk <target>` is the canonical invocation — there is deliberately
 **no top-level wrapper** (it would either clobber the build, as above, or add a
