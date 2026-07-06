@@ -26,8 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /src
 COPY . .
 # Install into a DESTDIR so the runtime stage copies just the artifacts.
+# --enable-randr is explicit (not left to autodetect) so a missing
+# libxrandr-dev fails the build instead of silently dropping RandR.
 RUN ./autogen.sh \
-    && ./configure --prefix=/usr/local --sysconfdir=/etc \
+    && ./configure --prefix=/usr/local --sysconfdir=/etc --enable-randr \
     && make -j"$(nproc)" \
     && make install DESTDIR=/opt/wmaker-root
 
