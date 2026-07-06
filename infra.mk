@@ -54,6 +54,10 @@ build: ## Build the WM from source with RandR enabled (PREFIX=/usr/local)
 .PHONY: install
 install: build ## Build then install the RandR WM (uses $(SUDO) for PREFIX)
 	@$(SUDO) $(MAKE) install
+	# Refresh the loader cache so the freshly-installed /usr/local libWINGs /
+	# libwraster win over the distro copies; without this wmaker loads the older
+	# distro libWINGs and dies with an undefined-symbol error at startup.
+	@$(SUDO) ldconfig
 	@$(MAKE) -f infra.mk verify-randr-installed
 	@echo "==> installed; 'wmaker' now resolves to: $$(command -v wmaker)"
 
