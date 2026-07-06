@@ -58,10 +58,11 @@ install: build ## Build then install the RandR WM (uses $(SUDO) for PREFIX)
 	@echo "==> installed; 'wmaker' now resolves to: $$(command -v wmaker)"
 
 .PHONY: verify-randr
-verify-randr: ## Assert the freshly built src/wmaker links libXrandr
-	@ldd src/wmaker 2>/dev/null | grep -q libXrandr \
-		&& echo "OK: src/wmaker links libXrandr (RandR live-reconfig enabled)" \
-		|| { echo "FAIL: src/wmaker is missing libXrandr — is libxrandr-dev installed?"; exit 1; }
+verify-randr: ## Assert the freshly built wmaker links libXrandr
+	@bin=src/.libs/wmaker; [ -f "$$bin" ] || bin=src/wmaker; \
+	ldd "$$bin" 2>/dev/null | grep -q libXrandr \
+		&& echo "OK: $$bin links libXrandr (RandR live-reconfig enabled)" \
+		|| { echo "FAIL: $$bin is missing libXrandr — is libxrandr-dev installed?"; exit 1; }
 
 .PHONY: verify-randr-installed
 verify-randr-installed: ## Assert the installed $(PREFIX)/bin/wmaker links libXrandr
